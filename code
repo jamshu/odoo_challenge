@@ -1,0 +1,30 @@
+def _lines_get(self, partner):
+        moveline_obj = self.pool['account.move.line']
+        movelines = moveline_obj.search(self.cr, self.uid,
+                [('partner_id', '=', partner.id),
+                    ('account_id.type', 'in', ['receivable', 'payable']),
+                    ('move_id.state', '<>', 'draft'), ('reconcile_id', '=', False)])
+        movelines = moveline_obj.browse(self.cr, self.uid, movelines)
+        partial_reconcile_lines = {}
+        for move in movelines:
+            if move.reconcile_partial_id:
+                partial_reconcile_lines.update({move.id: move.reconcile_partial_id.id})
+        print partial_reconcile_lines,"1"*88
+        from collections import defaultdict
+
+        v = defaultdict(list)
+
+        for key, value in sorted(partial_reconcile_lines.iteritems()):
+            v[value].append(key)
+        print v.values(),"2"*88
+        
+        for moves in v.values():
+            total_due = 0.0
+            total_paid = 0.0
+            moves_ids_list = moves
+            for idx in moves_ids_list:
+                total_due += reduce(lambda x, y: x + ((y['account_id']['type'] == 'receivable' and y['debit'] or 0) or (y['account_id']['type'] == 'payable' and y['credit'] * -1 or 0)), moveline_obj.browse(self.cr, self.uid, [idx]), 0)
+                total_paid += reduce(lambda x, y: x + ((y['account_id']['type'] == 'receivable' and y['credit'] or 0) or (y['account_id']['type'] == 'payable' and y['debit'] * -1 or 0)), moveline_obj.browse(self.cr, self.uid, [idx]), 0)
+                
+        print total_due,total_paid,"23"*10
+        return movelines
